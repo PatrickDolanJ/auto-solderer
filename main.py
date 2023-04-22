@@ -6,6 +6,10 @@
 # with 15mm distance from lens to surface:
 # x = 640 pixels (-320mm, 320mm) = 14.4mm (-7.2mm, 7.2mm)
 # y = 480 pixels = (-240mm, 240mm) = 10.2mm (5.1mm, 5.1mm)
+
+# Project Made by: Patrick Dolan
+#                  Ian Edwards
+
 import re
 import cv2
 import keyboard, time, serial
