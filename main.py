@@ -10,10 +10,18 @@ import re
 import cv2
 import keyboard, time, serial
 import json5
+import printer
+import camera
+from roboflow import Roboflow
+
 
 m114bool = False
+img_window_name = "Detection Frame"
+printer = printer.Printer('COM7', 115200, 30)
+camera = camera.Camera(img_window_name)
 
-from roboflow import Roboflow
+
+
 rf = Roboflow(api_key="Ps6u1t52NmspLwtckYoq")
 project = rf.workspace().project("solder-detection")
 model = project.version(6).model
@@ -31,30 +39,33 @@ def translate(value, inMin, inMax, outMin, outMax):
 
     # Convert the 0-1 range into a value in the right range.
     result = outMin + (valueScaled * outSpan)
-    #print(result)
     return result
 
+def goToPoint():
+    XBoundCenter = XABS + x_mm_offset
+    YBoundCenter = YABS + y_mm_offset
+    x_mm_offset_str = str(x_mm_offset)  # convert to String
+    x_mm_offset_b = x_mm_offset_str.encode('UTF-8')
+    y_mm_offset_str = str(y_mm_offset)  # convert to String
+    y_mm_offset_b = y_mm_offset_str.encode('UTF-8')
+    sergantry.write(b'G1X')
+    sergantry.write(x_mm_offset_b)
+    print(x_mm_offset_b)
+    sergantry.write(b'Y')
+    sergantry.write(y_mm_offset_b)
+    print(y_mm_offset_b)
+    sergantry.write(b'\r\n')
+
+
+
+
+
 # https://stackoverflow.com/questions/27484250/python-pyserial-read-data-form-multiple-serial-ports-at-same-time
-sergantry = serial.Serial(
-    port='\\\\.\\COM7',
-    baudrate=115200,
-    parity=serial.PARITY_NONE,
-    stopbits=serial.STOPBITS_ONE,
-    bytesize=serial.EIGHTBITS
-)
-
-# print("Executing Commands")
-# time.sleep(1)#Give Marlin Time To Reboot
-# serclaw.write(b'h\r\n')#https://stackoverflow.com/questions/31187407/sending-ascii-command-using-pyserial
+sergantry = printer.serial
 time.sleep(5)
-sergantry.write(b'G28 X\r\n') #Home the Prusa
-sergantry.write(b'G28 Y\r\n') #Home the Prusa
-sergantry.write(b'G28 Z\r\n') #Home the Prusa
-sergantry.write(b'G1 Z27\r\n') #
-sergantry.write(b'G1 X131 Y81\r\n') #
-sergantry.write(b'G91\r\n') #Set all axes to relative
+printer.home()
 
-cv2.namedWindow("window")
+
 # cv2.namedWindow("video")
 
 cam = cv2.VideoCapture(1)
@@ -100,7 +111,7 @@ while True:
         cv2.line(frame, (620, 0), (620, 480), (0, 0, 0), 1)
         cv2.line(frame, (0, 340), (640, 340), (0, 0, 0), 1)
         cv2.line(frame, (0, 440), (640, 440), (0, 0, 0), 1)
-        cv2.imshow("window", frame) #frame shows current frame #moving this here makes the last image show up in the window rather than a constant video feed
+        cv2.imshow(img_window_name, frame) #frame shows current frame #moving this here makes the last image show up in the window rather than a constant video feed
 
 
 
@@ -111,6 +122,7 @@ while True:
         rval = False
 
     if rval == True:
+        camera.drawGridImg(frame,frame)
         cv2.imshow("video", frame)
         rval, frame = cam.read()
         key = cv2.waitKey(20)
@@ -120,33 +132,16 @@ while True:
 
     if keyboard.is_pressed('p'):
         img_name = "temp_frame.png"#.format(img_counter) #give the temporary frame a name. We will keep overwritting it
-        cv2.line(frame, (320, 0), (320, 480), (0, 0, 255), 1)
-        cv2.line(frame, (0, 240), (640, 240), (0, 0, 255), 1)
-        cv2.circle(frame, (320, 240), 37, (0, 0, 255),2)  # cv2.circle(image, center_coordinates, radius, color, thickness)
-
-        cv2.line(frame, (220, 0), (220, 480), (0, 0, 255), 1)
-        cv2.line(frame, (120, 0), (120, 480), (0, 0, 255), 1)
-        cv2.line(frame, (20, 0), (20, 480), (0, 0, 255), 1)
-        cv2.line(frame, (0, 140), (640, 140), (0, 0, 255), 1)
-        cv2.line(frame, (0, 40), (640, 40), (0, 0, 255), 1)
-
-        cv2.line(frame, (420, 0), (420, 480), (0, 0, 255), 1)
-        cv2.line(frame, (520, 0), (520, 480), (0, 0, 255), 1)
-        cv2.line(frame, (620, 0), (620, 480), (0, 0, 255), 1)
-        cv2.line(frame, (0, 340), (640, 340), (0, 0, 255), 1)
-        cv2.line(frame, (0, 440), (640, 440), (0, 0, 255), 1)
-        cv2.imshow("window", frame)#moving this here makes the last image show up in the test window rather than a constant video feed
-        cv2.imwrite(img_name, frame) #save the image
+        camera.drawGridImg(frame,img_name)
 
         # infer on a local image
-        #print(model.predict("temp_frame.png", confidence=20, overlap=30).json())
-        json5_string = model.predict("temp_frame.png", confidence=20, overlap=50).json()
+        json5_string = model.predict(img_name, confidence=20, overlap=50).json()
         # visualize your prediction
-        model.predict("temp_frame.png", confidence=20, overlap=30).save("detected.jpg")
+        model.predict(img_name, confidence=20, overlap=30).save("detected.jpg")
 
-        #Now Display the image that detection has run on
+        # Now Display the image that detection has run on
         pic = cv2.imread("detected.jpg")
-        cv2.imshow("window", pic)
+        cv2.imshow(img_window_name, pic)
 
         data = json5.loads(json5_string)  # retrieve the values from the json5 file which is now python library 'data'
         print("There are " + str(len(data['predictions'])) + " objects detected")
@@ -239,19 +234,16 @@ while True:
             m114bool = False
 
     if keyboard.is_pressed('1'):
-        XBoundCenter = XABS + x_mm_offset
-        YBoundCenter = YABS + y_mm_offset
-        x_mm_offset_str = str(x_mm_offset) #convert to String
-        x_mm_offset_b = x_mm_offset_str.encode('UTF-8')
-        y_mm_offset_str = str(y_mm_offset)  # convert to String
-        y_mm_offset_b = y_mm_offset_str.encode('UTF-8')
-        sergantry.write(b'G1X')
-        sergantry.write(x_mm_offset_b)
-        print(x_mm_offset_b)
-        sergantry.write(b'Y')
-        sergantry.write(y_mm_offset_b)
-        print(y_mm_offset_b)
-        sergantry.write(b'\r\n')
+        goToPoint()
+        #printer.serial.write(b'M400')
+
+        time.sleep(1)
+        
+        pic = cv2.imread("detected.jpg")
+        camera.drawGridImg(frame,img_window_name)
+        cv2.imshow(img_window_name, pic)
+
+
 
     time.sleep(.1)  # slow down the loop looking for button press
 
