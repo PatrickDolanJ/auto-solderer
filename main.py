@@ -21,7 +21,7 @@ from roboflow import Roboflow
 
 m114bool = False
 img_window_name = "Detection Frame"
-printer = printer.Printer('COM7', 115200, 30)
+printer = printer.Printer('COM5', 115200, 30)
 camera = camera.Camera(img_window_name)
 
 
@@ -45,22 +45,20 @@ def translate(value, inMin, inMax, outMin, outMax):
     result = outMin + (valueScaled * outSpan)
     return result
 
-def goToPoint():
+def goToPoint(self):
     XBoundCenter = XABS + x_mm_offset
     YBoundCenter = YABS + y_mm_offset
     x_mm_offset_str = str(x_mm_offset)  # convert to String
     x_mm_offset_b = x_mm_offset_str.encode('UTF-8')
     y_mm_offset_str = str(y_mm_offset)  # convert to String
     y_mm_offset_b = y_mm_offset_str.encode('UTF-8')
-    sergantry.write(b'G1X')
-    sergantry.write(x_mm_offset_b)
+    self.serial.write(b'G1X')
+    self.serial.write(x_mm_offset_b)
     print(x_mm_offset_b)
-    sergantry.write(b'Y')
-    sergantry.write(y_mm_offset_b)
+    self.serial.write(b'Y')
+    self.serial.write(y_mm_offset_b)
     print(y_mm_offset_b)
-    sergantry.write(b'\r\n')
-
-
+    self.serial.write(b'\r\n')
 
 
 
@@ -69,6 +67,16 @@ sergantry = printer.serial
 time.sleep(5)
 printer.home()
 
+printer.serial.write(b'G90 \r\n')
+printer.serial.write(b'G1 Z20 F40000 \r\n')
+time.sleep(1)
+printer.serial.write(b'G1 X200  \r\n')
+print(printer.serial.read_all())
+printer.serial.write((b'M400 \r\n'))
+printer.serial.write((b'M118 fart \r\n'))
+
+while b'fart' not in printer.serial.readline():
+    print('waiting...')
 
 # cv2.namedWindow("video")
 
